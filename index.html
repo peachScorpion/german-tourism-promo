@@ -1,0 +1,518 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>德国旅游专家管理系统 - 销售推广视频</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+:root{
+  --red:#E30613;--red-dark:#B8050F;--navy:#0A1A2F;--gold:#D4AF37;
+  --white:#FFFFFF;--gray:#8899AA;--dark:#050D1A;
+}
+html,body{width:100%;height:100%;overflow:hidden;background:#000;font-family:'PingFang SC','Microsoft YaHei','Helvetica Neue',sans-serif}
+
+#player{position:relative;width:100vw;height:100vh;overflow:hidden;background:#000}
+
+/* Progress bar */
+#progress-track{position:absolute;bottom:0;left:0;width:100%;height:4px;background:rgba(255,255,255,0.1);z-index:200}
+#progress-fill{height:100%;width:0;background:linear-gradient(90deg,var(--red),var(--gold));transition:width 0.1s linear;box-shadow:0 0 8px var(--red)}
+
+/* Scene dots */
+#dots{position:absolute;bottom:16px;left:50%;transform:translateX(-50%);display:flex;gap:8px;z-index:200}
+.dot{width:6px;height:6px;border-radius:50%;background:rgba(255,255,255,0.2);transition:all 0.3s;cursor:pointer}
+.dot.active{background:var(--red);width:24px;border-radius:3px}
+
+/* Controls */
+#controls{position:absolute;top:16px;right:16px;display:flex;gap:8px;z-index:200;opacity:0;transition:opacity 0.3s}
+#player:hover #controls{opacity:1}
+.ctl{width:36px;height:36px;border-radius:50%;border:1px solid rgba(255,255,255,0.2);background:rgba(10,26,47,0.7);color:#fff;cursor:pointer;font-size:14px;display:flex;align-items:center;justify-content:center;backdrop-filter:blur(10px)}
+.ctl:hover{background:var(--red)}
+
+/* Scene base */
+.scene{position:absolute;top:0;left:0;width:100%;height:100%;opacity:0;visibility:hidden;transition:opacity 0.6s ease,visibility 0.6s;display:flex;align-items:center;justify-content:center;overflow:hidden}
+.scene.active{opacity:1;visibility:visible}
+.scene:not(.active) *{animation:none!important}
+.scene:not(.active) video{pause}
+
+/* Video clip scenes */
+.video-scene{background:#000}
+.video-scene video{width:100%;height:100%;object-fit:cover}
+
+/* Overlay on video */
+.video-overlay{position:absolute;inset:0;background:linear-gradient(180deg,rgba(0,0,0,0.3) 0%,transparent 40%,transparent 60%,rgba(0,0,0,0.6) 100%);z-index:1}
+
+/* Screenshot scenes */
+.shot-scene{background:var(--dark)}
+.shot-bg{position:absolute;inset:0;background-size:cover;background-position:center top;transform:scale(1.05)}
+.shot-bg.kenburns{animation:kenBurns 8s ease-out forwards}
+.shot-bg.zoom{animation:zoomIn 6s ease-out forwards}
+.shot-overlay{position:absolute;inset:0;background:linear-gradient(180deg,rgba(5,13,26,0.3) 0%,transparent 30%,transparent 50%,rgba(5,13,26,0.85) 100%);z-index:1}
+.shot-overlay.dark{background:linear-gradient(180deg,rgba(5,13,26,0.5) 0%,rgba(5,13,26,0.3) 40%,rgba(5,13,26,0.7) 80%,rgba(5,13,26,0.95) 100%)}
+
+/* Text overlays */
+.text-overlay{position:absolute;z-index:5;text-align:center;width:100%;padding:0 40px}
+.text-overlay.bottom{bottom:8%}
+.text-overlay.center{top:50%;transform:translateY(-50%)}
+.text-overlay.top{top:8%}
+.text-overlay.left{left:5%;width:auto;text-align:left}
+.text-overlay.right{right:5%;left:auto;width:auto;text-align:right}
+
+.t-label{font-size:14px;letter-spacing:4px;color:var(--gold);text-transform:uppercase;font-weight:600;opacity:0;animation:fadeUp 0.6s 0.3s forwards}
+.t-title{font-size:36px;font-weight:800;color:var(--white);margin:12px 0;opacity:0;animation:fadeUp 0.6s 0.6s forwards;text-shadow:0 2px 20px rgba(0,0,0,0.8);line-height:1.3}
+.t-title .hl{color:var(--gold)}
+.t-title .red{color:var(--red)}
+.t-desc{font-size:16px;color:rgba(255,255,255,0.8);opacity:0;animation:fadeUp 0.6s 0.9s forwards;text-shadow:0 1px 10px rgba(0,0,0,0.8);line-height:1.6}
+.t-num{font-size:42px;font-weight:900;color:var(--red);opacity:0;animation:fadeUp 0.6s 0.5s forwards;text-shadow:0 2px 20px rgba(0,0,0,0.8)}
+
+/* Cursor */
+.cursor{position:absolute;width:28px;height:28px;z-index:50;opacity:0;pointer-events:none}
+.cursor svg{width:100%;height:100%;filter:drop-shadow(0 2px 6px rgba(0,0,0,0.6))}
+.cursor.click{animation:cursorClick 0.3s ease}
+.cursor-ripple{position:absolute;width:40px;height:40px;border:2px solid var(--red);border-radius:50%;z-index:49;opacity:0;pointer-events:none;transform:translate(-50%,-50%)}
+
+/* Highlight box */
+.highlight-box{position:absolute;border:2px solid var(--red);border-radius:8px;z-index:40;opacity:0;pointer-events:none;box-shadow:0 0 20px rgba(227,6,19,0.5),inset 0 0 20px rgba(227,6,19,0.2)}
+
+/* Feature tags */
+.feature-tags{position:absolute;z-index:5;display:flex;gap:12px;flex-wrap:wrap;justify-content:center;width:100%;padding:0 60px;bottom:15%}
+.ftag{padding:8px 20px;border-radius:30px;font-size:14px;font-weight:600;opacity:0;animation:fadeUp 0.5s forwards;backdrop-filter:blur(10px)}
+.ftag.red{background:rgba(227,6,19,0.2);border:1px solid var(--red);color:var(--white)}
+.ftag.gold{background:rgba(212,175,55,0.2);border:1px solid var(--gold);color:var(--gold)}
+.ftag.navy{background:rgba(10,26,47,0.6);border:1px solid rgba(255,255,255,0.3);color:var(--white)}
+.ftag:nth-child(1){animation-delay:1s}
+.ftag:nth-child(2){animation-delay:1.3s}
+.ftag:nth-child(3){animation-delay:1.6s}
+.ftag:nth-child(4){animation-delay:1.9s}
+
+/* Value props */
+.value-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;max-width:800px;margin:0 auto}
+.vprop{display:flex;align-items:center;gap:14px;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);border-radius:12px;padding:16px 20px;opacity:0;transform:translateY(20px)}
+.vprop:nth-child(1){animation:fadeUpSlide 0.5s 0.8s forwards}
+.vprop:nth-child(2){animation:fadeUpSlide 0.5s 1.1s forwards}
+.vprop:nth-child(3){animation:fadeUpSlide 0.5s 1.4s forwards}
+.vprop:nth-child(4){animation:fadeUpSlide 0.5s 1.7s forwards}
+.vicon{width:40px;height:40px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0}
+.vi1{background:linear-gradient(135deg,var(--red),var(--red-dark));color:#fff}
+.vi2{background:linear-gradient(135deg,var(--gold),#9A7F26);color:var(--navy)}
+.vi3{background:linear-gradient(135deg,var(--navy),#1a3a5c);color:var(--gold)}
+.vi4{background:linear-gradient(135deg,#1a3a5c,var(--navy));color:#fff}
+.vprop h4{font-size:15px;font-weight:700;color:var(--white);margin-bottom:2px}
+.vprop p{font-size:12px;color:var(--gray)}
+
+/* CTA */
+.cta-box{text-align:center;max-width:600px}
+.cta-btn{display:inline-block;padding:14px 40px;background:linear-gradient(135deg,var(--red),var(--red-dark));color:#fff;font-size:18px;font-weight:700;border-radius:50px;opacity:0;animation:fadeUp 0.6s 1.2s forwards;box-shadow:0 10px 30px rgba(227,6,19,0.4);text-decoration:none;margin-top:20px}
+.cta-url{font-size:14px;color:var(--gold);letter-spacing:1px;opacity:0;animation:fadeUp 0.6s 1.5s forwards;margin-top:16px}
+.cta-contact{font-size:12px;color:var(--gray);opacity:0;animation:fadeUp 0.6s 1.8s forwards;margin-top:8px}
+
+/* Glow effect */
+.glow{position:absolute;width:400px;height:400px;border-radius:50%;background:radial-gradient(circle,rgba(227,6,19,0.15) 0%,transparent 70%);top:50%;left:50%;transform:translate(-50%,-50%);animation:pulse 4s infinite;z-index:0}
+
+/* Brand badge */
+.brand-badge{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);text-align:center;z-index:5}
+.brand-badge .logo{font-size:32px;font-weight:800;color:var(--white);opacity:0;animation:fadeUp 0.8s 0.5s forwards;text-shadow:0 4px 30px rgba(0,0,0,0.8)}
+.brand-badge .logo .hl{color:var(--gold)}
+.brand-badge .tagline{font-size:16px;color:rgba(255,255,255,0.7);margin-top:12px;opacity:0;animation:fadeUp 0.8s 1s forwards}
+.brand-badge .divider{width:0;height:2px;background:var(--red);margin:20px auto;animation:expandLine 0.8s 1.5s forwards}
+
+/* Step indicator */
+.step-indicator{position:absolute;top:50%;left:30px;transform:translateY(-50%);z-index:10;display:flex;flex-direction:column;gap:20px}
+.step-dot{width:10px;height:10px;border-radius:50%;background:rgba(255,255,255,0.2);border:2px solid rgba(255,255,255,0.3)}
+.step-dot.active{background:var(--red);border-color:var(--red);box-shadow:0 0 10px var(--red)}
+
+/* Chapter list mock */
+.chapter-list{position:absolute;z-index:5;display:flex;flex-direction:column;gap:8px;width:80%;max-width:600px}
+.chapter-item{display:flex;align-items:center;gap:12px;background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.15);border-radius:8px;padding:10px 16px;opacity:0;transform:translateX(-30px)}
+.chapter-item:nth-child(1){animation:slideIn 0.4s 0.8s forwards}
+.chapter-item:nth-child(2){animation:slideIn 0.4s 1.0s forwards}
+.chapter-item:nth-child(3){animation:slideIn 0.4s 1.2s forwards}
+.chapter-item:nth-child(4){animation:slideIn 0.4s 1.4s forwards}
+.chapter-num{font-size:20px;font-weight:900;color:var(--gold);flex-shrink:0;width:36px}
+.chapter-text{flex:1}
+.chapter-text h5{font-size:14px;color:var(--white);font-weight:600}
+.chapter-text p{font-size:11px;color:var(--gray);margin-top:2px}
+.chapter-lock{font-size:16px;opacity:0.5}
+
+/* Animations */
+@keyframes fadeUp{from{opacity:0;transform:translateY(15px)}to{opacity:1;transform:translateY(0)}}
+@keyframes fadeUpSlide{from{opacity:0;transform:translateY(20px)}to{opacity:1;transform:translateY(0)}}
+@keyframes kenBurns{from{transform:scale(1.05) translateY(0)}to{transform:scale(1.15) translateY(-20px)}}
+@keyframes zoomIn{from{transform:scale(1.1)}to{transform:scale(1.18)}}
+@keyframes cursorMove1{0%{left:80%;top:75%;opacity:0}15%{opacity:1}85%{left:50%;top:58%;opacity:1}100%{left:50%;top:58%;opacity:1}}
+@keyframes cursorMove2{0%{left:20%;top:45%;opacity:0}15%{opacity:1}85%{left:50%;top:50%;opacity:1}100%{left:50%;top:50%;opacity:1}}
+@keyframes cursorMove3{0%{left:50%;top:20%;opacity:0}15%{opacity:1}85%{left:50%;top:45%;opacity:1}100%{left:50%;top:45%;opacity:1}}
+@keyframes cursorMove4{0%{left:15%;top:50%;opacity:0}15%{opacity:1}50%{left:40%;top:50%;opacity:1}85%{left:70%;top:55%;opacity:1}100%{left:70%;top:55%;opacity:1}}
+@keyframes cursorMove5{0%{left:70%;top:30%;opacity:0}15%{opacity:1}85%{left:50%;top:60%;opacity:1}100%{left:50%;top:60%;opacity:1}}
+@keyframes cursorClick{0%{transform:scale(1)}50%{transform:scale(0.7)}100%{transform:scale(1)}}
+@keyframes blink{0%,50%{opacity:1}51%,100%{opacity:0}}
+@keyframes expandLine{from{width:0}to{width:100px}}
+@keyframes pulse{0%,100%{opacity:0.5;transform:translate(-50%,-50%) scale(1)}50%{opacity:1;transform:translate(-50%,-50%) scale(1.1)}}
+@keyframes slideIn{from{opacity:0;transform:translateX(-30px)}to{opacity:1;transform:translateX(0)}}
+@keyframes ripple{0%{width:0;height:0;opacity:0.8}100%{width:80px;height:80px;opacity:0;transform:translate(-50%,-50%)}}
+@keyframes highlightPulse{0%,100%{opacity:0.4}50%{opacity:0.9}}
+</style>
+</head>
+<body>
+<div id="player">
+
+<div id="controls">
+  <button class="ctl" id="pp" onclick="togglePlay()">⏸</button>
+  <button class="ctl" onclick="replay()">↻</button>
+</div>
+<div id="progress-track"><div id="progress-fill"></div></div>
+<div id="dots"></div>
+
+<!-- Scene 1: 开场 - 城堡AI视频 (3.5s) -->
+<div class="scene video-scene" id="s1" data-duration="3500">
+  <video src="video-assets/clip1_castle.mp4" autoplay muted playsinline></video>
+  <div class="video-overlay"></div>
+  <div class="brand-badge">
+    <div class="logo">德国旅游局<span class="hl">旅游专家</span>管理系统</div>
+    <div class="divider"></div>
+    <div class="tagline">Certified Tourism Expert Program</div>
+  </div>
+</div>
+
+<!-- Scene 2: 首页展示 (4.5s) -->
+<div class="scene shot-scene" id="s2" data-duration="4500">
+  <div class="shot-bg kenburns" style="background-image:url('video-assets/home.png')"></div>
+  <div class="shot-overlay"></div>
+  <div class="text-overlay bottom">
+    <div class="t-label">官方认证平台</div>
+    <div class="t-title">欢迎加入<span class="red">「德国」</span>旅游专家</div>
+    <div class="t-desc">解锁欧洲心脏的深度旅行密码，成就您的专业旅行人生</div>
+  </div>
+</div>
+
+<!-- Scene 3: 首页 - 点击"立即开始学习" (4.5s) -->
+<div class="scene shot-scene" id="s3" data-duration="4500">
+  <div class="shot-bg" style="background-image:url('video-assets/home_cards.png')"></div>
+  <div class="shot-overlay" style="background:linear-gradient(180deg,transparent 0%,transparent 50%,rgba(5,13,26,0.9) 100%)"></div>
+  <div class="cursor" id="cursor1" style="animation:cursorMove1 4.5s ease-in-out forwards">
+    <svg viewBox="0 0 24 24" fill="white" stroke="#E30613" stroke-width="1.5">
+      <path d="M5.5 3.5L19 12L12 13.5L10.5 20.5L5.5 3.5Z"/>
+    </svg>
+  </div>
+  <div class="text-overlay bottom">
+    <div class="t-label">第一步</div>
+    <div class="t-title" style="font-size:28px">点击<span class="red">「立即开始学习」</span>进入课程</div>
+  </div>
+</div>
+
+<!-- Scene 4: 学习页面 - 课程列表 (5s) -->
+<div class="scene shot-scene" id="s4" data-duration="5000">
+  <div class="shot-bg zoom" style="background-image:url('video-assets/learning_courses.png')"></div>
+  <div class="shot-overlay"></div>
+  <div class="text-overlay top">
+    <div class="t-label">课程体系</div>
+    <div class="t-title" style="font-size:30px">4大课程 · 21章节 · <span class="hl">全面覆盖</span></div>
+  </div>
+  <div class="feature-tags" style="bottom:10%">
+    <div class="ftag red">第1课 德国概况 (6章)</div>
+    <div class="ftag gold">第2课 魅力名城联盟 (11章)</div>
+    <div class="ftag navy">第3课 萨克森州 (2章)</div>
+    <div class="ftag navy">第4课 德国主题游 (2章)</div>
+  </div>
+</div>
+
+<!-- Scene 5: 点击进入课程详情 (4.5s) -->
+<div class="scene shot-scene" id="s5" data-duration="4500">
+  <div class="shot-bg" style="background-image:url('video-assets/learning_courses2.png')"></div>
+  <div class="shot-overlay dark"></div>
+  <div class="cursor" id="cursor2" style="animation:cursorMove2 4.5s ease-in-out forwards">
+    <svg viewBox="0 0 24 24" fill="white" stroke="#E30613" stroke-width="1.5">
+      <path d="M5.5 3.5L19 12L12 13.5L10.5 20.5L5.5 3.5Z"/>
+    </svg>
+  </div>
+  <div class="text-overlay bottom">
+    <div class="t-label">第二步</div>
+    <div class="t-title" style="font-size:28px">点击<span class="red">「第1课 德国概况」</span>查看详情</div>
+  </div>
+</div>
+
+<!-- Scene 6: 课程详情页 - 章节列表 (5.5s) -->
+<div class="scene shot-scene" id="s6" data-duration="5500">
+  <div class="shot-bg kenburns" style="background-image:url('video-assets/course_screens/course_detail_full.png')"></div>
+  <div class="shot-overlay" style="background:linear-gradient(180deg,rgba(5,13,26,0.5) 0%,transparent 25%,transparent 45%,rgba(5,13,26,0.9) 100%)"></div>
+  <div class="text-overlay top">
+    <div class="t-label">课程子页面</div>
+    <div class="t-title" style="font-size:26px">章节内容 · <span class="hl">逐步解锁</span></div>
+  </div>
+  <div class="text-overlay bottom">
+    <div class="t-desc" style="font-size:15px">签证申请 → 交通概况 → 目的地解析 → 主题路线<br>系统化知识体系，由浅入深，确保学习效果</div>
+  </div>
+</div>
+
+<!-- Scene 7: 课程详情 - 点击章节 (4.5s) -->
+<div class="scene shot-scene" id="s7" data-duration="4500">
+  <div class="shot-bg" style="background-image:url('video-assets/course_screens/course_detail_page_top.png')"></div>
+  <div class="shot-overlay dark"></div>
+  <div class="cursor" id="cursor3" style="animation:cursorMove3 4.5s ease-in-out forwards">
+    <svg viewBox="0 0 24 24" fill="white" stroke="#E30613" stroke-width="1.5">
+      <path d="M5.5 3.5L19 12L12 13.5L10.5 20.5L5.5 3.5Z"/>
+    </svg>
+  </div>
+  <div class="text-overlay bottom">
+    <div class="t-label">第三步</div>
+    <div class="t-title" style="font-size:26px">点击<span class="red">「第3章 交通概况」</span>进入学习</div>
+    <div class="t-desc">航空 · 铁路 · 公路 · 内河航运 — 全面掌握德国交通体系</div>
+  </div>
+</div>
+
+<!-- Scene 8: 柏林AI视频过渡 (3.5s) -->
+<div class="scene video-scene" id="s8" data-duration="3500">
+  <video src="video-assets/clip2_berlin.mp4" autoplay muted playsinline></video>
+  <div class="video-overlay"></div>
+  <div class="text-overlay center">
+    <div class="t-label">官方权威</div>
+    <div class="t-title">德国旅游局<span class="hl">官方认证</span></div>
+    <div class="t-desc">行业认可的入门通行证</div>
+  </div>
+</div>
+
+<!-- Scene 9: 我的学习 - 进度追踪 (5s) -->
+<div class="scene shot-scene" id="s9" data-duration="5000">
+  <div class="shot-bg kenburns" style="background-image:url('video-assets/course_screens/page_scroll1.png')"></div>
+  <div class="shot-overlay dark"></div>
+  <div class="cursor" id="cursor4" style="animation:cursorMove4 5s ease-in-out forwards">
+    <svg viewBox="0 0 24 24" fill="white" stroke="#E30613" stroke-width="1.5">
+      <path d="M5.5 3.5L19 12L12 13.5L10.5 20.5L5.5 3.5Z"/>
+    </svg>
+  </div>
+  <div class="text-overlay bottom">
+    <div class="t-label">学习管理</div>
+    <div class="t-title" style="font-size:28px">学习进度<span class="hl">全程可视化追踪</span></div>
+    <div class="t-desc">累计学习时间 · 证书状态 · 课程进度 一目了然</div>
+  </div>
+</div>
+
+<!-- Scene 10: 证书查询 - 输入验证 (5s) -->
+<div class="scene shot-scene" id="s10" data-duration="5000">
+  <div class="shot-bg kenburns" style="background-image:url('video-assets/cert_query.png')"></div>
+  <div class="shot-overlay" style="background:linear-gradient(180deg,rgba(5,13,26,0.4) 0%,transparent 30%,transparent 60%,rgba(5,13,26,0.9) 100%)"></div>
+  <div class="cursor" id="cursor5" style="animation:cursorMove5 5s ease-in-out forwards">
+    <svg viewBox="0 0 24 24" fill="white" stroke="#E30613" stroke-width="1.5">
+      <path d="M5.5 3.5L19 12L12 13.5L10.5 20.5L5.5 3.5Z"/>
+    </svg>
+  </div>
+  <div class="text-overlay bottom">
+    <div class="t-label">证书验证</div>
+    <div class="t-title" style="font-size:28px">输入证书编号 · <span class="hl">即时验证真伪</span></div>
+    <div class="t-desc">每一位认证专家都有唯一编号，官方可查</div>
+  </div>
+</div>
+
+<!-- Scene 11: 专家简介 (4.5s) -->
+<div class="scene shot-scene" id="s11" data-duration="4500">
+  <div class="shot-bg kenburns" style="background-image:url('video-assets/expert_content.png')"></div>
+  <div class="shot-overlay"></div>
+  <div class="text-overlay top">
+    <div class="t-label">专家简介</div>
+    <div class="t-title" style="font-size:28px">官方认证证书 + <span class="hl">实体勋章</span></div>
+  </div>
+  <div class="text-overlay bottom">
+    <div class="t-desc">掌握德国旅游资源、历史文化、高端服务能力<br>产品设计、行程规划、客户沟通 — 全方位专业提升</div>
+  </div>
+</div>
+
+<!-- Scene 12: 主题游课程 (4s) -->
+<div class="scene shot-scene" id="s12" data-duration="4000">
+  <div class="shot-bg zoom" style="background-image:url('video-assets/course_screens/expert_or_cert.png')"></div>
+  <div class="shot-overlay"></div>
+  <div class="text-overlay bottom">
+    <div class="t-label">第4课 德国主题游</div>
+    <div class="t-title" style="font-size:26px">丰富主题课程 · <span class="hl">实战案例教学</span></div>
+    <div class="t-desc">从城市探索到户外体验，覆盖多元旅行场景</div>
+  </div>
+</div>
+
+<!-- Scene 13: 价值主张 (5s) -->
+<div class="scene" id="s13" data-duration="5000" style="background:linear-gradient(135deg,#0A1A2F 0%,#050D1A 100%)">
+  <div class="glow"></div>
+  <div style="position:relative;z-index:2;text-align:center;width:100%;max-width:900px;padding:0 40px">
+    <div class="t-label" style="opacity:0;animation:fadeUp 0.5s 0.2s forwards">为什么选择我们</div>
+    <div class="t-title" style="font-size:32px;opacity:0;animation:fadeUp 0.5s 0.5s forwards;margin-bottom:30px">为旅游从业者<span class="hl">量身打造</span></div>
+    <div class="value-grid">
+      <div class="vprop">
+        <div class="vicon vi1">🎓</div>
+        <div><h4>专业提升</h4><p>系统化德国旅游知识培训</p></div>
+      </div>
+      <div class="vprop">
+        <div class="vicon vi2">🏅</div>
+        <div><h4>官方认证</h4><p>德国旅游局权威背书</p></div>
+      </div>
+      <div class="vprop">
+        <div class="vicon vi3">📊</div>
+        <div><h4>数字管理</h4><p>学习进度全程可视化追踪</p></div>
+      </div>
+      <div class="vprop">
+        <div class="vicon vi4">🚀</div>
+        <div><h4>业务增长</h4><p>认证资质赢得更多客户信任</p></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Scene 14: CTA 行动号召 (4.5s) -->
+<div class="scene" id="s14" data-duration="4500" style="background:radial-gradient(ellipse at center,#102540 0%,#050D1A 70%)">
+  <div class="glow"></div>
+  <div style="position:relative;z-index:2;text-align:center;width:100%">
+    <div class="cta-box">
+      <div class="t-label" style="opacity:0;animation:fadeUp 0.6s 0.3s forwards">立即开始</div>
+      <div class="t-title" style="font-size:36px;opacity:0;animation:fadeUp 0.6s 0.6s forwards">加入<span class="red">德国旅游专家</span>认证计划</div>
+      <a href="https://dzpc.uuxlink.com/" class="cta-btn">立即访问平台 →</a>
+      <div class="cta-url">dzpc.uuxlink.com</div>
+      <div class="cta-contact">联系电话：010-65906449 · 邮箱：fang.zhao@germany.travel</div>
+    </div>
+  </div>
+</div>
+
+</div>
+
+<script>
+const scenes = document.querySelectorAll('.scene');
+const progressFill = document.getElementById('progress-fill');
+const dotsContainer = document.getElementById('dots');
+const ppBtn = document.getElementById('pp');
+
+let currentScene = 0;
+let isPlaying = true;
+let progressInterval = null;
+let sceneStartTime = 0;
+let sceneElapsed = 0;
+let clickTimeouts = [];
+
+const durations = Array.from(scenes).map(s => parseInt(s.dataset.duration));
+const totalDuration = durations.reduce((a,b) => a+b, 0);
+
+scenes.forEach((s, i) => {
+  const dot = document.createElement('div');
+  dot.className = 'dot' + (i === 0 ? ' active' : '');
+  dot.onclick = () => goToScene(i);
+  dotsContainer.appendChild(dot);
+});
+
+function updateDots() {
+  document.querySelectorAll('.dot').forEach((d, i) => {
+    d.classList.toggle('active', i === currentScene);
+  });
+}
+
+function clearClickTimeouts() {
+  clickTimeouts.forEach(t => clearTimeout(t));
+  clickTimeouts = [];
+}
+
+function showScene(index) {
+  scenes.forEach(s => s.classList.remove('active'));
+  void scenes[index].offsetWidth;
+  
+  const videos = scenes[index].querySelectorAll('video');
+  videos.forEach(v => { v.currentTime = 0; v.play().catch(() => {}); });
+  
+  scenes[index].classList.add('active');
+  currentScene = index;
+  updateDots();
+  sceneStartTime = Date.now();
+  sceneElapsed = 0;
+  
+  clearClickTimeouts();
+  
+  // Add click effects for scenes with cursors
+  const cursorScenes = {
+    2: { cursorId: 'cursor1', clickTime: 3200, clickPos: {left:'50%',top:'58%'} },
+    4: { cursorId: 'cursor2', clickTime: 3000, clickPos: {left:'50%',top:'50%'} },
+    6: { cursorId: 'cursor3', clickTime: 3000, clickPos: {left:'50%',top:'45%'} },
+    8: { cursorId: 'cursor4', clickTime: 2500, clickPos: {left:'40%',top:'50%'} },
+    9: { cursorId: 'cursor5', clickTime: 3000, clickPos: {left:'50%',top:'60%'} }
+  };
+  
+  if (cursorScenes[index]) {
+    const cs = cursorScenes[index];
+    const cursor = document.getElementById(cs.cursorId);
+    if (cursor) {
+      const t = setTimeout(() => {
+        if (currentScene === index) {
+          cursor.classList.add('click');
+          const ripple = document.createElement('div');
+          ripple.style.cssText = `position:absolute;width:0;height:0;border:2px solid #E30613;border-radius:50%;left:${cs.clickPos.left};top:${cs.clickPos.top};z-index:49;pointer-events:none;animation:ripple 0.6s ease-out forwards`;
+          scenes[index].appendChild(ripple);
+          setTimeout(() => ripple.remove(), 600);
+        }
+      }, cs.clickTime);
+      clickTimeouts.push(t);
+    }
+  }
+}
+
+function nextScene() {
+  if (currentScene < scenes.length - 1) {
+    showScene(currentScene + 1);
+    playScene();
+  } else {
+    showScene(0);
+    playScene();
+  }
+}
+
+function playScene() {
+  if (!isPlaying) return;
+  clearInterval(progressInterval);
+  
+  const duration = durations[currentScene];
+  
+  progressInterval = setInterval(() => {
+    if (!isPlaying) return;
+    sceneElapsed = Date.now() - sceneStartTime;
+    
+    let progress = 0;
+    for (let i = 0; i < currentScene; i++) progress += durations[i];
+    progress += Math.min(sceneElapsed, duration);
+    progress = (progress / totalDuration) * 100;
+    progressFill.style.width = progress + '%';
+    
+    if (sceneElapsed >= duration) {
+      clearInterval(progressInterval);
+      nextScene();
+    }
+  }, 50);
+}
+
+function togglePlay() {
+  isPlaying = !isPlaying;
+  ppBtn.textContent = isPlaying ? '⏸' : '▶';
+  if (isPlaying) {
+    sceneStartTime = Date.now() - sceneElapsed;
+    playScene();
+    document.querySelectorAll('.scene.active video').forEach(v => v.play().catch(() => {}));
+  } else {
+    clearInterval(progressInterval);
+    clearClickTimeouts();
+    document.querySelectorAll('video').forEach(v => v.pause());
+  }
+}
+
+function replay() {
+  isPlaying = true;
+  ppBtn.textContent = '⏸';
+  showScene(0);
+  playScene();
+}
+
+function goToScene(index) {
+  showScene(index);
+  if (isPlaying) playScene();
+}
+
+showScene(0);
+playScene();
+
+document.addEventListener('keydown', (e) => {
+  if (e.key === ' ') { e.preventDefault(); togglePlay(); }
+  if (e.key === 'ArrowRight') goToScene(Math.min(currentScene + 1, scenes.length - 1));
+  if (e.key === 'ArrowLeft') goToScene(Math.max(currentScene - 1, 0));
+});
+</script>
+</body>
+</html>
